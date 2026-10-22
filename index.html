@@ -757,7 +757,7 @@ function renderSources(){const src=[["Loto 1976–2008 (6/49)",LOTO_OLD[0].d,LOT
 
 // ===== Avis des testeurs =====
 // Base dédiée LotoLabo (Firebase / Firestore). Tant qu'elle n'est pas renseignée, l'avis est envoyé par WhatsApp.
-const FEEDBACK={project:"",apiKey:"",whatsapp:""};
+const FEEDBACK={project:"lotolabo-6a93e",apiKey:"",whatsapp:""};
 const fbState={note:0};
 const radios=(id,name,list,checked)=>{$(id).innerHTML=list.map(([v,l])=>`<label><input type="radio" name="${name}" value="${v}" ${v===checked?"checked":""}>${l}</label>`).join("")};
 function openFb(){radios("#fbDesign","fbd",DESIGNS.map(d=>[d[0],d[1]]),design);radios("#fbGame","fbg",Object.values(GAMES).map(g=>[g.id,g.name]),G.id);radios("#fbPay","fbp",[["mois","Oui, 2,99 €/mois"],["an","Oui, 19,99 €/an"],["moins","Oui, mais moins cher"],["non","Non, gratuit seulement"]],"");$("#fbMsg").textContent="";$("#fbSend").disabled=false;$("#fb").showModal()}
