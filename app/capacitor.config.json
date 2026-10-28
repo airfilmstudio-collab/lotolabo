@@ -1,0 +1,10 @@
+{
+  "appId": "fr.universaldj.lotolabo",
+  "appName": "LotoLabo",
+  "webDir": "www",
+  "backgroundColor": "#0d1022",
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 900, "backgroundColor": "#0d1022", "showSpinner": false },
+    "StatusBar": { "overlaysWebView": false, "style": "DARK", "backgroundColor": "#0d1022" }
+  }
+}
