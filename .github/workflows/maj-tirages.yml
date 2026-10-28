@@ -1,0 +1,34 @@
+name: Mise à jour des tirages FDJ
+
+on:
+  schedule:
+    - cron: "23 5 * * *"   # 6 h 23 / 7 h 23 à Paris : résultats de la veille au soir
+    - cron: "41 11 * * *"  # milieu de journée : rattrapage
+    - cron: "53 21 * * *"  # 22 h 53 / 23 h 53 à Paris : tirages du soir
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: maj-tirages
+  cancel-in-progress: false
+
+jobs:
+  maj:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Migration (une seule fois)
+        run: python3 robot/migrate.py index.html
+      - name: Récupérer les archives FDJ
+        run: python3 robot/update.py .
+      - name: Publier si nouveaux tirages
+        run: |
+          if [ -z "$(git status --porcelain index.html data.json)" ]; then echo "Rien de nouveau."; exit 0; fi
+          git config user.name "Robot LotoLabo"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html data.json
+          git commit -m "Tirages FDJ du $(date -u +%d/%m/%Y)"
+          git push
