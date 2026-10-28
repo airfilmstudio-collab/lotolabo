@@ -1,0 +1,96 @@
+name: Appli mobile LotoLabo
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "test (achats simulés) ou store (achats réels)"
+        default: "test"
+  push:
+    branches: [main]
+    paths: ["app/**", ".github/workflows/app.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: appli-mobile
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Clé de signature de test (gardée d'une version à l'autre)
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: lotolabo-debug-keystore-v1
+      - name: Projet Capacitor Android
+        working-directory: app
+        run: |
+          npm install --no-audit --no-fund
+          node make-www.mjs "${{ inputs.mode || 'test' }}"
+          node make-assets.mjs
+          npx cap add android
+          npx capacitor-assets generate --android
+          npx cap sync android
+      - name: Compiler l'APK
+        working-directory: app/android
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"0.9.${{ github.run_number }}\"/" app/build.gradle
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon -q
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/LotoLabo-test.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LotoLabo-android
+          path: LotoLabo-test.apk
+      - name: Lien de téléchargement pour les testeurs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s\n' "Version test Android de LotoLabo (n° 0.9.${{ github.run_number }})." "" "Installation : ouvre ce lien sur ton téléphone Android, télécharge LotoLabo-test.apk, puis ouvre le fichier et autorise l'installation." "Pendant le test, LotoLabo+ se débloque gratuitement : rien n'est facturé." > notes.txt
+          gh release view test >/dev/null 2>&1 || gh release create test --title "LotoLabo — version test" --notes-file notes.txt --prerelease
+          gh release edit test --notes-file notes.txt
+          gh release upload test LotoLabo-test.apk --clobber
+
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Xcode le plus récent
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1); echo "$X"; sudo xcode-select -s "$X"
+      - name: Projet Capacitor iOS
+        working-directory: app
+        run: |
+          npm install --no-audit --no-fund
+          node make-www.mjs "${{ inputs.mode || 'test' }}"
+          node make-assets.mjs
+          npx cap add ios
+          npx capacitor-assets generate --ios
+          npx cap sync ios
+      - name: Compiler pour le simulateur (contrôle, sans signature)
+        working-directory: app/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -20
+          cd build/Build/Products/Debug-iphonesimulator && zip -qr "$GITHUB_WORKSPACE/LotoLabo-simulateur.zip" App.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LotoLabo-ios-simulateur
+          path: LotoLabo-simulateur.zip
