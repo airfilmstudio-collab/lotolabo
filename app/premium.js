@@ -110,7 +110,7 @@
       "</div>" +
       '<button class="cta" type="button" id="llBuy"></button>' +
       '<div class="links"><button type="button" id="llRestore">Restaurer mes achats</button><button type="button" id="llLater">Plus tard</button></div>' +
-      '<p class="fine">Essai gratuit de ' + PRICES.trial + ", puis renouvellement automatique. Résiliable à tout moment dans les réglages de ton compte App Store ou Google Play. LotoLabo est une application indépendante, sans lien avec la FDJ : elle ne permet pas de jouer et ne prédit aucun résultat.</p>" +
+      '<p class="fine">Essai gratuit de ' + PRICES.trial + ", puis renouvellement automatique. Résiliable à tout moment dans les réglages de ton compte App Store ou Google Play. LotoLabo est une application indépendante, sans lien avec la FDJ : elle ne permet pas de jouer et ne prédit aucun résultat.<br><a href=\"https://www.apple.com/legal/internet-services/itunes/dev/stdeula/\" target=\"_blank\" rel=\"noopener\">Conditions d'utilisation</a> · <a href=\"https://airfilmstudio-collab.github.io/lotolabo/confidentialite.html\" target=\"_blank\" rel=\"noopener\">Confidentialité</a></p>" +
       "</div>";
     document.body.appendChild(dlg);
     dlg.querySelector(".x").onclick = close;
@@ -130,6 +130,7 @@
     new MutationObserver(decorate).observe(document.body, { childList: true, subtree: true });
     ads();
     stateChip();
+    syncPurchases();
   }
   function label() {
     dlg.querySelector("#llBuy").textContent = MODE === "test" ? "Débloquer gratuitement (test)" : "Essayer " + PRICES.trial + " gratuitement";
@@ -163,33 +164,84 @@
     ads();
     stateChip();
   }
+  // ---------- Natif : achats (RevenueCat), publicité (AdMob), bouton retour ----------
+  var CFG = window.LL_CONFIG || {};
+  var Cap = window.Capacitor;
+  var NATIVE = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
+  var OS = NATIVE ? Cap.getPlatform() : "web";
+  function plugin(n) { return NATIVE && Cap.Plugins ? Cap.Plugins[n] : null; }
+  var ENT = (CFG.revenuecat && CFG.revenuecat.entitlement) || "plus";
+  var rcReady = null;
+  function purchases() {
+    var P = plugin("Purchases");
+    var key = CFG.revenuecat && CFG.revenuecat[OS];
+    if (MODE !== "store" || !P || !key) return null;
+    if (!rcReady) rcReady = P.configure({ apiKey: key }).then(function () { return P; });
+    return rcReady;
+  }
+  function hasPlus(info) { var ci = info && (info.customerInfo || info); return !!(ci && ci.entitlements && ci.entitlements.active && ci.entitlements.active[ENT]); }
+  function syncPurchases() {
+    var r = purchases();
+    if (!r) return;
+    r.then(function (P) { return P.getCustomerInfo(); }).then(function (i) { if (hasPlus(i) !== plus) unlock(hasPlus(i)); }).catch(function () {});
+  }
+
   function buy() {
     if (MODE === "test") { unlock(true); close(); toast("LotoLabo+ débloqué pour le test. Merci !"); return; }
-    var P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Purchases;
-    if (!P) { toast("Les achats seront disponibles à la sortie sur les stores."); return; }
-    // Branché à la publication : offre RevenueCat « default », paquets annuel / mensuel.
-    P.getOfferings().then(function (o) {
-      var pk = o.current && (plan === "year" ? o.current.annual : o.current.monthly);
-      return pk && P.purchasePackage({ aPackage: pk });
-    }).then(function (r) {
-      if (r && r.customerInfo && r.customerInfo.entitlements.active.plus) { unlock(true); close(); toast("Bienvenue dans LotoLabo+ !"); }
-    }).catch(function () {});
+    var r = purchases();
+    if (!r) { toast("Les achats seront disponibles à la sortie sur les stores."); return; }
+    var btn = dlg.querySelector("#llBuy");
+    btn.disabled = true;
+    r.then(function (P) {
+      return P.getOfferings().then(function (o) {
+        var pk = o.current && (plan === "year" ? o.current.annual : o.current.monthly);
+        if (!pk) throw new Error("offre introuvable");
+        return P.purchasePackage({ aPackage: pk });
+      });
+    }).then(function (res) {
+      if (hasPlus(res)) { unlock(true); close(); toast("Bienvenue dans LotoLabo+ !"); }
+    }).catch(function (err) {
+      if (!(err && (err.userCancelled || err.code === "1"))) toast("L'achat n'a pas abouti. Réessaie dans un instant.");
+    }).then(function () { btn.disabled = false; });
   }
   function restore() {
     if (MODE === "test") { toast("En version test, il n'y a rien à restaurer."); return; }
-    var P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Purchases;
-    if (!P) return;
-    P.restorePurchases().then(function (r) {
-      var ok = r && r.customerInfo && r.customerInfo.entitlements.active.plus;
+    var r = purchases();
+    if (!r) return;
+    r.then(function (P) { return P.restorePurchases(); }).then(function (res) {
+      var ok = hasPlus(res);
       unlock(ok);
       toast(ok ? "Achats restaurés." : "Aucun abonnement trouvé.");
       if (ok) close();
-    }).catch(function () {});
+    }).catch(function () { toast("Restauration impossible pour le moment."); });
   }
 
+  var adState = "off";
+  function nativeAds(show) {
+    var A = plugin("AdMob");
+    if (!A) return false;
+    if (!show) { if (adState !== "off") { A.removeBanner().catch(function () {}); adState = "off"; } return true; }
+    if (adState !== "off") return true;
+    adState = "starting";
+    var ad = CFG.admob || {};
+    A.initialize({}).then(function () { return A.requestConsentInfo(); }).then(function (c) {
+      if (c && c.isConsentFormAvailable && c.status === "REQUIRED") return A.showConsentForm();
+      return c;
+    }).then(function () {
+      if (OS !== "ios") return;
+      return A.trackingAuthorizationStatus().then(function (s) { if (s && s.status === "notDetermined") return A.requestTrackingAuthorization(); });
+    }).then(function () {
+      if (plus) { adState = "off"; return; }
+      return A.showBanner({ adId: OS === "ios" ? ad.bannerIos : ad.bannerAndroid, adSize: "ADAPTIVE_BANNER", position: "BOTTOM_CENTER", margin: 0, isTesting: !!ad.testing })
+        .then(function () { adState = "on"; });
+    }).catch(function () { adState = "off"; });
+    return true;
+  }
   function ads() {
     var ad = document.getElementById("llAd");
-    if (plus) { if (ad) ad.remove(); document.body.classList.remove("ll-ad"); return; }
+    if (plus) { if (ad) ad.remove(); document.body.classList.remove("ll-ad"); nativeAds(false); return; }
+    document.body.classList.add("ll-ad");
+    if (nativeAds(true)) { if (ad) ad.remove(); return; }
     if (!ad) {
       ad = document.createElement("div");
       ad.id = "llAd";
@@ -197,7 +249,25 @@
       ad.querySelector("button").onclick = function () { openPaywall("Profite de LotoLabo sans publicité."); };
       document.body.appendChild(ad);
     }
-    document.body.classList.add("ll-ad");
+  }
+
+  if (NATIVE) {
+    // Bouton retour Android : ferme d'abord une fenêtre ouverte, puis revient à l'atelier, puis quitte.
+    var App = plugin("App");
+    if (App && App.addListener) App.addListener("backButton", function () {
+      var open = document.querySelector("dialog[open]");
+      if (open) { open.close(); return; }
+      var v = location.hash.slice(1);
+      if (v && v !== "atelier") { location.hash = "#atelier"; return; }
+      App.exitApp();
+    });
+    // Liens externes (WhatsApp, sources, conditions) : ouverts dans le navigateur du téléphone.
+    document.addEventListener("click", function (e) {
+      var a = e.target.closest && e.target.closest("a[href^='http']");
+      if (!a || a.target !== "_blank") return;
+      e.preventDefault();
+      window.location.href = a.href;
+    });
   }
 
   function stateChip() {
@@ -212,6 +282,16 @@
       c.onclick = function () { if (plus) { if (MODE === "test") unlock(false); } else openPaywall(); };
     }
     c.textContent = plus ? (MODE === "test" ? "LotoLabo+ actif (test) · revenir à la version gratuite" : "LotoLabo+ actif · merci !") : "Version gratuite · découvrir LotoLabo+";
+    var A = plugin("AdMob"), pc = document.getElementById("llPrivacy");
+    if (A && !plus && !pc) {
+      pc = document.createElement("button");
+      pc.id = "llPrivacy";
+      pc.type = "button";
+      pc.textContent = "Gérer mes choix publicitaires";
+      pc.style.cssText = "display:block;margin:8px auto 0;border:0;background:none;color:inherit;opacity:.7;font-size:12px;text-decoration:underline;cursor:pointer";
+      pc.onclick = function () { A.showPrivacyOptionsForm().catch(function () {}); };
+      c.insertAdjacentElement("afterend", pc);
+    } else if (pc && plus) pc.remove();
   }
 
   function toast(msg) {

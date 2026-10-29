@@ -1,0 +1,11 @@
+{
+  "brand": "AirfilmStudio",
+  "revenuecat": { "ios": "", "android": "", "entitlement": "plus" },
+  "admob": {
+    "testing": true,
+    "appIdAndroid": "ca-app-pub-3940256099942544~3347511713",
+    "appIdIos": "ca-app-pub-3940256099942544~1458002511",
+    "bannerAndroid": "ca-app-pub-3940256099942544/9214589741",
+    "bannerIos": "ca-app-pub-3940256099942544/2435281174"
+  }
+}
