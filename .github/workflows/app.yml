@@ -20,7 +20,11 @@ concurrency:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
+    env:
+      KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+      KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -43,6 +47,7 @@ jobs:
           node make-assets.mjs
           npx cap add android
           npx capacitor-assets generate --android
+          node patch-native.mjs android
           npx cap sync android
       - name: Compiler l'APK
         working-directory: app/android
@@ -63,6 +68,22 @@ jobs:
           gh release view test >/dev/null 2>&1 || gh release create test --title "LotoLabo — version test" --notes-file notes.txt --prerelease
           gh release edit test --notes-file notes.txt
           gh release upload test LotoLabo-test.apk --clobber
+      - name: Version Google Play (fichier AAB signé, achats et pubs réels)
+        if: env.KS_B64 != ''
+        working-directory: app
+        run: |
+          node make-www.mjs store
+          npx cap sync android
+          cd android
+          ./gradlew bundleRelease --no-daemon -q
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore "$RUNNER_TEMP/upload.jks" -storepass "$KS_PASS" -signedjar "$GITHUB_WORKSPACE/LotoLabo-play-store.aab" app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
+          rm -f "$RUNNER_TEMP/upload.jks"
+      - uses: actions/upload-artifact@v4
+        if: env.KS_B64 != ''
+        with:
+          name: LotoLabo-play-store
+          path: LotoLabo-play-store.aab
 
   ios:
     runs-on: macos-latest
@@ -84,6 +105,7 @@ jobs:
           node make-assets.mjs
           npx cap add ios
           npx capacitor-assets generate --ios
+          node patch-native.mjs ios
           npx cap sync ios
       - name: Compiler pour le simulateur (contrôle, sans signature)
         working-directory: app/ios/App
