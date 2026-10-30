@@ -7,12 +7,14 @@ const cfg = JSON.parse(fs.readFileSync("config.json", "utf8"));
 const pub = { brand: cfg.brand, revenuecat: cfg.revenuecat, admob: { testing: cfg.admob.testing, bannerAndroid: cfg.admob.bannerAndroid, bannerIos: cfg.admob.bannerIos } };
 const tag = '<meta charset="utf-8">';
 if (!t.includes(tag)) throw new Error("balise charset introuvable");
-t = t.replace(tag, tag + "\n<script>window.LL_APP_MODE=" + JSON.stringify(mode) + ";window.LL_CONFIG=" + JSON.stringify(pub) + "</script>\n<script src=\"premium.js\"></script>");
+t = t.replace(tag, tag + "\n<script>window.LL_APP_MODE=" + JSON.stringify(mode) + ";window.LL_CONFIG=" + JSON.stringify(pub) + "</script>\n<script src=\"i18n-dict.js\"></script>\n<script src=\"i18n.js\"></script>\n<script src=\"premium.js\"></script>");
 t = t.replace(/<meta name="robots"[^>]*>\n?/, "");
 // Textes propres au site web
 t = t.split(" <b>Aperçu LotoLabo+</b> : dans l'appli, ce jeu fera partie de l'abonnement. Ici tout est ouvert pour tester.").join("");
 t = t.split("Dans ce navigateur").join("Sur cet appareil");
 t = t.split("Universal DJ Normandie présente").join(cfg.brand + " présente");
+t = t.split("Pas de mise à jour automatique dans cette version web : les données s'arrêtent aux dates indiquées.").join("Les nouveaux tirages sont ajoutés automatiquement chaque jour.");
+t = t.split('"de l\'histoire du "+g.name').join('"de l\'histoire "+(/^[AEIOU]/.test(g.name)?"de l\'":"du ")+g.name');
 // Polices intégrées à l'appli (hors connexion, aucun appel à Google Fonts)
 fs.mkdirSync("www/fonts", { recursive: true });
 let css = "";
@@ -44,4 +46,6 @@ t = t.replace(/<link rel="preconnect"[^>]*>\n?/g, "").replace(/<link rel="styles
 fs.mkdirSync("www", { recursive: true });
 fs.writeFileSync("www/index.html", t);
 fs.copyFileSync("premium.js", "www/premium.js");
+fs.copyFileSync("i18n.js", "www/i18n.js");
+fs.copyFileSync("i18n-dict.js", "www/i18n-dict.js");
 console.log("www prêt (mode " + mode + ", " + t.length + " octets, " + fs.readdirSync("www/fonts").length + " fichiers de polices)");

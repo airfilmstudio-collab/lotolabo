@@ -6,7 +6,14 @@
   var MODE = window.LL_APP_MODE || "web";
   if (MODE === "web") return;
 
-  var FREE = {
+  var ZONE = window.LL_ZONE || "fr";
+  var FREE = ZONE === "eu" ? {
+    games: ["em"],
+    views: ["atelier", "stats", "sources"],
+    strats: ["chaudes", "retard", "mix", "hasard"],
+    designs: ["studio", "ticket"],
+    eras: ["r100"]
+  } : {
     games: ["loto"],
     views: ["atelier", "stats", "archives", "sources"],
     strats: ["chaudes", "retard", "mix", "hasard"],
@@ -21,7 +28,7 @@
 
   // Au démarrage en version gratuite, on revient sur des réglages gratuits avant que l'appli ne les lise.
   if (!plus) {
-    if (get("ll_game") && FREE.games.indexOf(get("ll_game")) < 0) set("ll_game", "loto");
+    if (get("ll_game") && FREE.games.indexOf(get("ll_game")) < 0) set("ll_game", FREE.games[0]);
     if (get("ll_tab") && FREE.views.indexOf(get("ll_tab")) < 0) set("ll_tab", "atelier");
     if (get("ll_design") && FREE.designs.indexOf(get("ll_design")) < 0) set("ll_design", "studio");
     var h = location.hash.slice(1);
@@ -32,11 +39,13 @@
     if (plus || !el) return null;
     var b;
     if ((b = el.closest("#games button[data-g]")) && FREE.games.indexOf(b.dataset.g) < 0)
-      return "Le " + b.firstChild.textContent.trim() + " fait partie de LotoLabo+.";
+      return "« " + b.firstChild.textContent.trim() + " » fait partie de LotoLabo+.";
     if ((b = el.closest("nav.tabs a[data-v]")) && FREE.views.indexOf(b.dataset.v) < 0)
       return "« " + b.textContent.trim() + " » fait partie de LotoLabo+.";
     if ((b = el.closest("#strats .strat")) && FREE.strats.indexOf(b.dataset.s) < 0)
       return "L'inspiration « " + b.querySelector("b").textContent + " » fait partie de LotoLabo+.";
+    if (FREE.eras && (b = el.closest("#eraSeg button[data-e]")) && FREE.eras.indexOf(b.dataset.e) < 0)
+      return "Tout l'historique fait partie de LotoLabo+.";
     if (el.closest("#draw10")) return "Les 10 grilles d'un coup font partie de LotoLabo+.";
     if ((b = el.closest("#designbar button[data-d]")) && FREE.designs.indexOf(b.dataset.d) < 0)
       return "Ce design fait partie de LotoLabo+.";
@@ -99,8 +108,11 @@
       '<div class="body">' +
       (MODE === "test" ? '<p class="test"><b>Version test :</b> rien n\'est facturé. Dis-nous dans ton avis si tu paierais ce prix.</p>' : "") +
       "<ul>" +
-      "<li><b>✦</b><span><strong>5 jeux en plus</strong> : EuroMillions, EuroDreams, Keno, Crescendo et Amigo</span></li>" +
-      "<li><b>✦</b><span><strong>Laboratoire, Machine à remonter le temps, Records</strong></span></li>" +
+      (ZONE === "eu" ?
+        "<li><b>✦</b><span><strong>EuroDreams</strong> et <strong>tout l'historique EuroMillions</strong> depuis 2004</span></li>" +
+        "<li><b>✦</b><span><strong>Ma grille face aux archives, Laboratoire, Machine à remonter le temps</strong></span></li>" :
+        "<li><b>✦</b><span><strong>5 jeux en plus</strong> : EuroMillions, EuroDreams, Keno, Crescendo et Amigo</span></li>" +
+        "<li><b>✦</b><span><strong>Laboratoire, Machine à remonter le temps, Records</strong></span></li>") +
       "<li><b>✦</b><span>Toutes les inspirations (En forme, Hors anniversaires, Mode DJ) et <strong>10 grilles d'un coup</strong></span></li>" +
       "<li><b>✦</b><span>Les <strong>4 designs</strong> et <strong>aucune publicité</strong></span></li>" +
       "</ul>" +
@@ -110,7 +122,7 @@
       "</div>" +
       '<button class="cta" type="button" id="llBuy"></button>' +
       '<div class="links"><button type="button" id="llRestore">Restaurer mes achats</button><button type="button" id="llLater">Plus tard</button></div>' +
-      '<p class="fine">Essai gratuit de ' + PRICES.trial + ", puis renouvellement automatique. Résiliable à tout moment dans les réglages de ton compte App Store ou Google Play. LotoLabo est une application indépendante, sans lien avec la FDJ : elle ne permet pas de jouer et ne prédit aucun résultat.<br><a href=\"https://www.apple.com/legal/internet-services/itunes/dev/stdeula/\" target=\"_blank\" rel=\"noopener\">Conditions d'utilisation</a> · <a href=\"https://airfilmstudio-collab.github.io/lotolabo/confidentialite.html\" target=\"_blank\" rel=\"noopener\">Confidentialité</a></p>" +
+      '<p class="fine">Essai gratuit de ' + PRICES.trial + ", puis renouvellement automatique. Résiliable à tout moment dans les réglages de ton compte App Store ou Google Play. " + (ZONE === "eu" ? "LotoLabo est une application indépendante, sans lien avec les loteries officielles : elle ne permet pas de jouer et ne prédit aucun résultat." : "LotoLabo est une application indépendante, sans lien avec la FDJ : elle ne permet pas de jouer et ne prédit aucun résultat.") + "<br><a href=\"https://www.apple.com/legal/internet-services/itunes/dev/stdeula/\" target=\"_blank\" rel=\"noopener\">Conditions d'utilisation</a> · <a href=\"https://airfilmstudio-collab.github.io/lotolabo/confidentialite.html\" target=\"_blank\" rel=\"noopener\">Confidentialité</a></p>" +
       "</div>";
     document.body.appendChild(dlg);
     dlg.querySelector(".x").onclick = close;
@@ -153,6 +165,11 @@
     document.querySelectorAll("#designbar button[data-d]").forEach(function (b) { if (FREE.designs.indexOf(b.dataset.d) < 0) sel.push(b); });
     var d10 = document.getElementById("draw10");
     if (d10) sel.push(d10);
+    if (FREE.eras) {
+      document.querySelectorAll("#eraSeg button[data-e]").forEach(function (b) { if (FREE.eras.indexOf(b.dataset.e) < 0) sel.push(b); });
+      var cur = document.querySelector('#eraSeg button[aria-pressed="true"]'), ok = document.querySelector('#eraSeg button[data-e="' + FREE.eras[0] + '"]');
+      if (!plus && cur && ok && FREE.eras.indexOf(cur.dataset.e) < 0) setTimeout(function () { ok.click(); }, 0);
+    }
     sel.forEach(function (b) { if (b.classList.contains("ll-lock") === plus) b.classList.toggle("ll-lock", !plus); });
     decorating = false;
   }
