@@ -124,8 +124,30 @@ jobs:
         if: env.ASC_KEY_ID != '' && github.event_name == 'workflow_dispatch'
         working-directory: app/ios/App
         run: |
+          set -o pipefail
           KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
-          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          # Remet la clé au bon format, quel que soit le copier-coller (retours à la ligne perdus, espaces, texte enrichi).
+          python3 - "$KEY" <<'PY'
+          import os, re, sys, base64, textwrap
+          raw = os.environ.get("ASC_KEY_P8", "")
+          if "\\rtf" in raw: raw = re.sub(r"\\[a-zA-Z]+-?\d* ?", " ", raw)
+          m = re.search(r"BEGIN PRIVATE KEY-+(.*?)-+END PRIVATE KEY", raw, re.S)
+          body = re.sub(r"[^A-Za-z0-9+/=]", "", m.group(1) if m else raw)
+          print("Clé reçue :", len(raw), "caractères, en-tête", "présent" if m else "absent", ", corps", len(body), "caractères")
+          try:
+              der = base64.b64decode(body, validate=True)
+          except Exception as e:
+              sys.exit("Clé illisible : le secret ASC_KEY_P8 ne contient pas le contenu du fichier .p8 (" + str(e) + ")")
+          if not m:
+              try:
+                  inner = der.decode("ascii")
+                  if "BEGIN PRIVATE KEY" in inner:
+                      body = re.sub(r"[^A-Za-z0-9+/=]", "", inner.split("-----")[2]); der = base64.b64decode(body)
+              except Exception:
+                  pass
+          print("Clé décodée :", len(der), "octets (une clé Apple fait environ 138 octets)")
+          open(sys.argv[1], "w").write("-----BEGIN PRIVATE KEY-----\n" + "\n".join(textwrap.wrap(body, 64)) + "\n-----END PRIVATE KEY-----\n")
+          PY
           AUTH="-allowProvisioningUpdates -authenticationKeyPath $KEY -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID"
           xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/LotoLabo.xcarchive" CODE_SIGN_STYLE=Automatic $AUTH archive | tail -25
           TEAM=$(node -p "require('../../config.json').teamIdIos")
