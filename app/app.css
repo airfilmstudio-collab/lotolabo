@@ -1,0 +1,14 @@
+/* LotoLabo — finitions propres à l'appli (iPhone, iPad, Mac, Android). Chargé après le style du site. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+/* Pas de sélection de texte ni de menu « copier » sur les boutons et les boules quand on tape vite. */
+button, .ball, [role="button"], .seg, .games, nav { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* L'image de la grille reste enregistrable par appui long. */
+img.card-img { -webkit-touch-callout: default; }
+/* iPhone / iPad : un champ en dessous de 16 px déclenche un zoom automatique à la saisie. */
+@media (pointer: coarse) { input, select, textarea { font-size: max(16px, 1em) !important; } }
+/* Mac et iPad avec trackpad : curseur main sur tout ce qui se clique. */
+@media (hover: hover) and (pointer: fine) { button:not(:disabled), select, label, summary, [role="button"] { cursor: pointer; } }
+/* Bouton de partage natif ajouté sous l'image de la grille. */
+.ll-share { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 4px; border: 0; border-radius: 999px; padding: 11px 18px; font: 700 15px system-ui, -apple-system, sans-serif; background: var(--accent, #ffcc00); color: var(--accent-ink, #111); cursor: pointer; }
+.ll-share:disabled { opacity: .6; }

@@ -254,8 +254,10 @@
     }).catch(function () { adState = "off"; });
     return true;
   }
+  var ADS_ON = !!(CFG.admob && CFG.admob.enabled);
   function ads() {
     var ad = document.getElementById("llAd");
+    if (!ADS_ON) { if (ad) ad.remove(); document.body.classList.remove("ll-ad"); return; }
     if (plus) { if (ad) ad.remove(); document.body.classList.remove("ll-ad"); nativeAds(false); return; }
     document.body.classList.add("ll-ad");
     if (nativeAds(true)) { if (ad) ad.remove(); return; }
@@ -287,6 +289,43 @@
     });
   }
 
+  // ---------- Natif : partage de l'image de la grille et retour haptique ----------
+  function shareCard(img, btn) {
+    var Sh = plugin("Share"), Fs = plugin("Filesystem");
+    var data = img.src.split(",")[1];
+    btn.disabled = true;
+    var name = "lotolabo-grille-" + Date.now() + ".png";
+    Fs.writeFile({ path: name, data: data, directory: "CACHE" })
+      .then(function (r) { return Sh.share({ title: "Ma grille LotoLabo", text: "Ma grille du jour, générée avec LotoLabo", files: [r.uri], dialogTitle: "Partager ma grille" }); })
+      .catch(function (err) { if (!/cancel/i.test(String(err && (err.message || err)))) toast("Partage impossible pour le moment."); })
+      .then(function () { btn.disabled = false; });
+  }
+  function enhanceCard(box) {
+    var img = box.querySelector("img.card-img");
+    if (!img || box.querySelector(".ll-share")) return;
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "ll-share";
+    b.textContent = OS === "android" ? "Partager l'image" : "Partager l'image…";
+    b.onclick = function () { shareCard(img, b); };
+    img.insertAdjacentElement("afterend", b);
+    var hint = box.querySelector("p.muted");
+    if (hint) hint.textContent = "WhatsApp, Messages, e-mail… ou appui long sur l'image pour l'enregistrer.";
+  }
+  function haptic(style) {
+    var H = plugin("Haptics");
+    if (H) H.impact({ style: style || "MEDIUM" }).catch(function () {});
+  }
+  if (NATIVE) {
+    if (plugin("Share") && plugin("Filesystem")) new MutationObserver(function (list) {
+      for (var i = 0; i < list.length; i++) if (list[i].target.id === "imgBox") enhanceCard(list[i].target);
+    }).observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("#draw,#draw10,#keep");
+      if (b) haptic(b.id === "keep" ? "LIGHT" : "MEDIUM");
+    }, true);
+  }
+
   function stateChip() {
     var foot = document.getElementById("foot");
     if (!foot) return;
@@ -299,7 +338,7 @@
       c.onclick = function () { if (plus) { if (MODE === "test") unlock(false); } else openPaywall(); };
     }
     c.textContent = plus ? (MODE === "test" ? "LotoLabo+ actif (test) · revenir à la version gratuite" : "LotoLabo+ actif · merci !") : "Version gratuite · découvrir LotoLabo+";
-    var A = plugin("AdMob"), pc = document.getElementById("llPrivacy");
+    var A = ADS_ON ? plugin("AdMob") : null, pc = document.getElementById("llPrivacy");
     if (A && !plus && !pc) {
       pc = document.createElement("button");
       pc.id = "llPrivacy";

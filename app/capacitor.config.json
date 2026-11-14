@@ -1,10 +1,23 @@
 {
-  "appId": "fr.universaldj.lotolabo",
+  "appId": "fr.airfilmstudio.lotolabo",
   "appName": "LotoLabo",
   "webDir": "www",
   "backgroundColor": "#0d1022",
   "plugins": {
-    "SplashScreen": { "launchShowDuration": 900, "backgroundColor": "#0d1022", "showSpinner": false },
-    "StatusBar": { "overlaysWebView": false, "style": "DARK", "backgroundColor": "#0d1022" }
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "backgroundColor": "#0d1022",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK",
+      "backgroundColor": "#0d1022"
+    }
+  },
+  "ios": {
+    "backgroundColor": "#0d1022",
+    "scrollEnabled": true,
+    "allowsLinkPreview": false
   }
 }

@@ -10,7 +10,8 @@ const wrap = (inner, size) =>
 const center = (s) => '<g transform="translate(512 512) scale(' + s + ') translate(-512 -435)">' + fg + "</g>";
 fs.mkdirSync("assets", { recursive: true });
 const out = (s, f) => sharp(Buffer.from(s)).png().toFile("assets/" + f);
-await out(svg, "icon-only.png");
+// Icône principale sans transparence : l'App Store refuse une icône 1024 avec canal alpha.
+await sharp(Buffer.from(svg)).flatten({ background: "#0d1022" }).removeAlpha().png().toFile("assets/icon-only.png");
 await out(wrap(bg), "icon-background.png");
 await out(wrap(center(0.6)), "icon-foreground.png");
 await out(wrap(bg + center(0.42), 2732), "splash.png");

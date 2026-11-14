@@ -4,10 +4,12 @@ import path from "path";
 const mode = process.argv[2] || "test";
 let t = fs.readFileSync("../index.html", "utf8");
 const cfg = JSON.parse(fs.readFileSync("config.json", "utf8"));
-const pub = { brand: cfg.brand, revenuecat: cfg.revenuecat, admob: { testing: cfg.admob.testing, bannerAndroid: cfg.admob.bannerAndroid, bannerIos: cfg.admob.bannerIos } };
+const pub = { brand: cfg.brand, revenuecat: cfg.revenuecat, admob: { enabled: !!cfg.admob.enabled, testing: cfg.admob.testing, bannerAndroid: cfg.admob.bannerAndroid, bannerIos: cfg.admob.bannerIos } };
 const tag = '<meta charset="utf-8">';
 if (!t.includes(tag)) throw new Error("balise charset introuvable");
 t = t.replace(tag, tag + "\n<script>window.LL_APP_MODE=" + JSON.stringify(mode) + ";window.LL_CONFIG=" + JSON.stringify(pub) + "</script>\n<script src=\"i18n-dict.js\"></script>\n<script src=\"i18n.js\"></script>\n<script src=\"premium.js\"></script>");
+if (!t.includes("</head>")) throw new Error("balise </head> introuvable");
+t = t.replace("</head>", "<link rel=\"stylesheet\" href=\"app.css\">\n</head>");
 t = t.replace(/<meta name="robots"[^>]*>\n?/, "");
 // Textes propres au site web
 t = t.split(" <b>Aperçu LotoLabo+</b> : dans l'appli, ce jeu fera partie de l'abonnement. Ici tout est ouvert pour tester.").join("");
@@ -46,6 +48,7 @@ t = t.replace(/<link rel="preconnect"[^>]*>\n?/g, "").replace(/<link rel="styles
 fs.mkdirSync("www", { recursive: true });
 fs.writeFileSync("www/index.html", t);
 fs.copyFileSync("premium.js", "www/premium.js");
+fs.copyFileSync("app.css", "www/app.css");
 fs.copyFileSync("i18n.js", "www/i18n.js");
 fs.copyFileSync("i18n-dict.js", "www/i18n-dict.js");
 console.log("www prêt (mode " + mode + ", " + t.length + " octets, " + fs.readdirSync("www/fonts").length + " fichiers de polices)");

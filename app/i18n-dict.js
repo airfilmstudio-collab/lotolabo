@@ -345,7 +345,11 @@ window.LL_DICT = [
 ["Coût au guichet à la mise minimale :", "Cost at the minimum price:", "Coste al precio mínimo:", "Custo ao preço mínimo:", "Kosten zum Mindestpreis:", "Kosten tegen de minimumprijs:"],
 ["{0} × {1} € = {2} €.", "{0} × €{1} = €{2}.", "{0} × {1} € = {2} €.", "{0} × {1} € = {2} €.", "{0} × {1} € = {2} €.", "{0} × € {1} = € {2}."],
 ["Mode DJ<br>Au dernier tirage :", "DJ mode<br>Latest draw:", "Modo DJ<br>Último sorteo:", "Modo DJ<br>Último sorteio:", "DJ-Modus<br>Letzte Ziehung:", "DJ-modus<br>Laatste trekking:"],
-["Au dernier tirage :", "Latest draw:", "Último sorteo:", "Último sorteio:", "Letzte Ziehung:", "Laatste trekking:"]
+["Au dernier tirage :", "Latest draw:", "Último sorteo:", "Último sorteio:", "Letzte Ziehung:", "Laatste trekking:"],
+["Partager l'image…", "Share image…", "Compartir imagen…", "Partilhar imagem…", "Bild teilen…", "Afbeelding delen…"],
+["Partager l'image", "Share image", "Compartir imagen", "Partilhar imagem", "Bild teilen", "Afbeelding delen"],
+["WhatsApp, Messages, e-mail… ou appui long sur l'image pour l'enregistrer.", "WhatsApp, Messages, email… or press and hold the image to save it.", "WhatsApp, Mensajes, correo… o mantén pulsada la imagen para guardarla.", "WhatsApp, Mensagens, e-mail… ou mantém premida a imagem para a guardar.", "WhatsApp, Nachrichten, E-Mail … oder Bild lange drücken, um es zu sichern.", "WhatsApp, Berichten, e-mail… of houd de afbeelding ingedrukt om ze te bewaren."],
+["Partage impossible pour le moment.", "Sharing isn't available right now.", "No se puede compartir por ahora.", "Não é possível partilhar de momento.", "Teilen ist gerade nicht möglich.", "Delen lukt nu even niet."]
 ];
 
 /* Version européenne : [clé française, français (Europe), anglais, espagnol, portugais, allemand, néerlandais] */

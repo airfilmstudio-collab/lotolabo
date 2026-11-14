@@ -1,7 +1,15 @@
 {
   "brand": "AirfilmStudio",
-  "revenuecat": { "ios": "", "android": "", "entitlement": "plus" },
+  "bundleId": "fr.airfilmstudio.lotolabo",
+  "version": "1.0",
+  "teamIdIos": "N953KXH82Y",
+  "revenuecat": {
+    "ios": "",
+    "android": "",
+    "entitlement": "plus"
+  },
   "admob": {
+    "enabled": false,
     "testing": true,
     "appIdAndroid": "ca-app-pub-3940256099942544~3347511713",
     "appIdIos": "ca-app-pub-3940256099942544~1458002511",
