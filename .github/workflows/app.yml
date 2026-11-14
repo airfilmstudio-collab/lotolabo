@@ -43,16 +43,16 @@ jobs:
         working-directory: app
         run: |
           npm install --no-audit --no-fund
+          if [ "$(node -p "require('./config.json').admob.enabled")" != "true" ]; then npm uninstall --no-audit --no-fund @capacitor-community/admob; fi
           node make-www.mjs "${{ inputs.mode || 'test' }}"
           node make-assets.mjs
           npx cap add android
           npx capacitor-assets generate --android
-          node patch-native.mjs android
+          node patch-native.mjs android ${{ github.run_number }}
           npx cap sync android
       - name: Compiler l'APK
         working-directory: app/android
         run: |
-          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"0.9.${{ github.run_number }}\"/" app/build.gradle
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon -q
           cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/LotoLabo-test.apk"
@@ -64,7 +64,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          printf '%s\n' "Version test Android de LotoLabo (n° 0.9.${{ github.run_number }})." "" "Installation : ouvre ce lien sur ton téléphone Android, télécharge LotoLabo-test.apk, puis ouvre le fichier et autorise l'installation." "Pendant le test, LotoLabo+ se débloque gratuitement : rien n'est facturé." > notes.txt
+          printf '%s\n' "Version test Android de LotoLabo (n° 1.0.${{ github.run_number }})." "" "Installation : ouvre ce lien sur ton téléphone Android, télécharge LotoLabo-test.apk, puis ouvre le fichier et autorise l'installation." "Pendant le test, LotoLabo+ se débloque gratuitement : rien n'est facturé." > notes.txt
           gh release view test >/dev/null 2>&1 || gh release create test --title "LotoLabo — version test" --notes-file notes.txt --prerelease
           gh release edit test --notes-file notes.txt
           gh release upload test LotoLabo-test.apk --clobber
@@ -87,8 +87,11 @@ jobs:
 
   ios:
     runs-on: macos-latest
-    timeout-minutes: 40
-    continue-on-error: true
+    timeout-minutes: 50
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -101,11 +104,12 @@ jobs:
         working-directory: app
         run: |
           npm install --no-audit --no-fund
+          if [ "$(node -p "require('./config.json').admob.enabled")" != "true" ]; then npm uninstall --no-audit --no-fund @capacitor-community/admob; fi
           node make-www.mjs "${{ inputs.mode || 'test' }}"
           node make-assets.mjs
           npx cap add ios
           npx capacitor-assets generate --ios
-          node patch-native.mjs ios
+          node patch-native.mjs ios ${{ github.run_number }}
           npx cap sync ios
       - name: Compiler pour le simulateur (contrôle, sans signature)
         working-directory: app/ios/App
@@ -116,3 +120,15 @@ jobs:
         with:
           name: LotoLabo-ios-simulateur
           path: LotoLabo-simulateur.zip
+      - name: Envoi sur TestFlight (iPhone, iPad et Mac) — lancement manuel, si la clé App Store Connect est enregistrée
+        if: env.ASC_KEY_ID != '' && github.event_name == 'workflow_dispatch'
+        working-directory: app/ios/App
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          AUTH="-allowProvisioningUpdates -authenticationKeyPath $KEY -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID"
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/LotoLabo.xcarchive" CODE_SIGN_STYLE=Automatic $AUTH archive | tail -25
+          TEAM=$(node -p "require('../../config.json').teamIdIos")
+          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' '<plist version="1.0"><dict>' '<key>method</key><string>app-store-connect</string>' '<key>destination</key><string>upload</string>' "<key>teamID</key><string>$TEAM</string>" '<key>signingStyle</key><string>automatic</string>' '<key>uploadSymbols</key><true/>' '<key>manageAppVersionAndBuildNumber</key><false/>' '</dict></plist>' > "$RUNNER_TEMP/export.plist"
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/LotoLabo.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/export" $AUTH | tail -25
+          rm -f "$KEY"
