@@ -24,7 +24,12 @@
   var plus = false;
   function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  plus = get(KEY) === "1";
+  // Phase de test sur les stores : tant que les achats (RevenueCat) ne sont pas branchés pour cette plateforme,
+  // toutes les fonctions LotoLabo+ sont offertes aux testeurs (aucun verrou, aucun écran d'achat).
+  var CFG0 = window.LL_CONFIG || {}, CAP0 = window.Capacitor;
+  var OS0 = CAP0 && CAP0.getPlatform ? CAP0.getPlatform() : "web";
+  var BETA = MODE === "test" || (MODE === "store" && !(CFG0.revenuecat && CFG0.revenuecat[OS0]));
+  plus = BETA || get(KEY) === "1";
 
   // Au démarrage en version gratuite, on revient sur des réglages gratuits avant que l'appli ne les lise.
   if (!plus) {
@@ -175,7 +180,7 @@
   }
 
   function unlock(on) {
-    plus = !!on;
+    plus = BETA || !!on;
     set(KEY, plus ? "1" : "0");
     decorate();
     ads();
@@ -335,9 +340,9 @@
       c.id = "llState";
       c.type = "button";
       foot.insertAdjacentElement("afterend", c);
-      c.onclick = function () { if (plus) { if (MODE === "test") unlock(false); } else openPaywall(); };
+      c.onclick = function () { if (BETA) { toast("Merci de tester LotoLabo ! Toutes les fonctions sont offertes."); return; } if (plus) { if (MODE === "test") unlock(false); } else openPaywall(); };
     }
-    c.textContent = plus ? (MODE === "test" ? "LotoLabo+ actif (test) · revenir à la version gratuite" : "LotoLabo+ actif · merci !") : "Version gratuite · découvrir LotoLabo+";
+    c.textContent = BETA ? "Version de test · toutes les fonctions LotoLabo+ offertes 🎁" : plus ? (MODE === "test" ? "LotoLabo+ actif (test) · revenir à la version gratuite" : "LotoLabo+ actif · merci !") : "Version gratuite · découvrir LotoLabo+";
     var A = ADS_ON ? plugin("AdMob") : null, pc = document.getElementById("llPrivacy");
     if (A && !plus && !pc) {
       pc = document.createElement("button");
