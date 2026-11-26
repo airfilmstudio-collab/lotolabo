@@ -119,11 +119,11 @@
         "<li><b>✦</b><span><strong>5 jeux en plus</strong> : EuroMillions, EuroDreams, Keno, Crescendo et Amigo</span></li>" +
         "<li><b>✦</b><span><strong>Laboratoire, Machine à remonter le temps, Records</strong></span></li>") +
       "<li><b>✦</b><span>Toutes les inspirations (En forme, Hors anniversaires, Mode DJ) et <strong>10 grilles d'un coup</strong></span></li>" +
-      "<li><b>✦</b><span>Les <strong>4 designs</strong> et <strong>aucune publicité</strong></span></li>" +
+      "<li><b>✦</b><span>Les <strong>4 designs</strong>" + (CFG0.admob && CFG0.admob.enabled ? " et <strong>aucune publicité</strong>" : "") + "</span></li>" +
       "</ul>" +
       '<div class="plans">' +
-      '<button class="plan" type="button" data-p="year" aria-pressed="true"><span class="tag">2 mois offerts</span><small>Annuel</small><b>' + PRICES.year + '</b><small>soit ' + PRICES.yearMonth + ' / mois</small></button>' +
-      '<button class="plan" type="button" data-p="month" aria-pressed="false"><small>Mensuel</small><b>' + PRICES.month + "</b><small>par mois</small></button>" +
+      '<button class="plan" type="button" data-p="year" aria-pressed="true"><span class="tag">2 mois offerts</span><small>Annuel</small><b id="llPYear">' + PRICES.year + '</b><small>soit <span id="llPYearMonth">' + PRICES.yearMonth + '</span> / mois</small></button>' +
+      '<button class="plan" type="button" data-p="month" aria-pressed="false"><small>Mensuel</small><b id="llPMonth">' + PRICES.month + "</b><small>par mois</small></button>" +
       "</div>" +
       '<button class="cta" type="button" id="llBuy"></button>' +
       '<div class="links"><button type="button" id="llRestore">Restaurer mes achats</button><button type="button" id="llLater">Plus tard</button></div>' +
@@ -154,7 +154,7 @@
   }
   function openPaywall(why) {
     if (!dlg) return;
-    dlg.querySelector("#llWhy").textContent = why || "Tous les jeux et tous les outils, sans publicité.";
+    dlg.querySelector("#llWhy").textContent = why || "Tous les jeux et tous les outils, sans limite.";
     if (!dlg.open) dlg.showModal();
   }
   function close() { if (dlg && dlg.open) dlg.close(); }
@@ -206,6 +206,20 @@
     var r = purchases();
     if (!r) return;
     r.then(function (P) { return P.getCustomerInfo(); }).then(function (i) { if (hasPlus(i) !== plus) unlock(hasPlus(i)); }).catch(function () {});
+    // Prix réels du store (devise et taxes du pays de l'utilisateur) à la place des prix indicatifs en euros.
+    r.then(function (P) { return P.getOfferings(); }).then(function (o) {
+      var c = o && o.current;
+      if (!c || !dlg) return;
+      function pr(pk) { return pk && pk.product ? pk.product : null; }
+      var y = pr(c.annual), m = pr(c.monthly);
+      if (y && y.priceString) {
+        dlg.querySelector("#llPYear").textContent = y.priceString;
+        try {
+          dlg.querySelector("#llPYearMonth").textContent = new Intl.NumberFormat(navigator.language || "fr-FR", { style: "currency", currency: y.currencyCode }).format(Math.floor(y.price / 12 * 100) / 100);
+        } catch (e) {}
+      }
+      if (m && m.priceString) dlg.querySelector("#llPMonth").textContent = m.priceString;
+    }).catch(function () {});
   }
 
   function buy() {
